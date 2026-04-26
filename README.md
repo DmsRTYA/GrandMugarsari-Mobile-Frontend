@@ -1,13 +1,17 @@
-# Hotel Reservasi — Flutter Mobile App
-**Grand Mugarsari Hotel Reservation System**
-
-Aplikasi mobile Flutter yang terintegrasi dengan REST API Next.js untuk sistem manajemen reservasi hotel.
+# Hotel Reservasi — Flutter Mobile App v3.0
 
 ---
 
+## Hasil Rombak Total/Perbaikan Keseluruhan
+- **Mengubah Role Staff Menjadi Pelanggan**
+- **Membatasi Hak Akses Pelanggan (Melihat Statistik Personal, Melakukan Reservasi, & Reschedule)**
+- **Merevisi Fitur Reschedule Agar Harus Mendapatkan Persetujuan Admin Terlebih Dahulu (Tidak Asal Merubah Jadwal)**
+- **Menambahkan Fitur Notifikasi Permintaan Reschedule**
+- **Memperbaiki Error Pada Kolom Harga Kamar, Pemilihan Tanggal, dan Permintaan Reschedule**
+
 ## Deskripsi Proyek
 
-Aplikasi ini merupakan implementasi **Tugas 2 Individu** mata kuliah Pengembangan Aplikasi Berbasis Platform. Dibangun menggunakan **Flutter** dengan arsitektur berlapis (layered architecture) dan terintegrasi penuh dengan backend REST API Next.js yang menggunakan autentikasi **JWT**.
+Aplikasi mobile Flutter dengan UI mulus, animasi transisi, kalender Google Material, dan dua tampilan berbeda untuk **Admin** dan **Pelanggan**. Dengan arsitektur berlapis (layered architecture) dan terintegrasi penuh dengan backend REST API Next.js yang menggunakan autentikasi **JWT**.
 
 ---
 

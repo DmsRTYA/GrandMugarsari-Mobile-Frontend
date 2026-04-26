@@ -1,6 +1,6 @@
 // lib/models/app_constants.dart
 
-const String kBaseUrl = 'http://10.0.2.2:3000';
+const String kBaseUrl = 'http://10.127.121.225:3000';
 // Ganti dengan IP lokal untuk device fisik: 'http://192.168.1.x:3000'
 
 const Map<String, int> kRoomTypes = {
