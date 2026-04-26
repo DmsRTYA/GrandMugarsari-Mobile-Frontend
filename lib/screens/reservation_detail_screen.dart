@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../models/reservation_model.dart';
 import '../models/app_constants.dart';
+import '../providers/auth_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/common_widgets.dart';
@@ -14,7 +15,8 @@ class ReservationDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final r = ModalRoute.of(context)!.settings.arguments as Reservation;
+    final r       = ModalRoute.of(context)!.settings.arguments as Reservation;
+    final isAdmin = context.watch<AuthProvider>().isAdmin;
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -47,15 +49,26 @@ class ReservationDetailScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => Navigator.pushNamed(
-                    context, '/reservations/edit', arguments: r),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _delete(context, r),
-              ),
+              // Admin: tombol edit & hapus penuh
+              if (isAdmin) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => Navigator.pushNamed(
+                      context, '/reservations/edit', arguments: r),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _delete(context, r),
+                ),
+              ]
+              // Pelanggan: hanya reschedule jika masih Booking
+              else if (r.status == 'Booking')
+                IconButton(
+                  icon: const Icon(Icons.edit_calendar),
+                  tooltip: 'Ubah Jadwal',
+                  onPressed: () => Navigator.pushNamed(
+                      context, '/reservations/reschedule', arguments: r),
+                ),
             ],
           ),
 
@@ -101,6 +114,39 @@ class ReservationDetailScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               _Card('Informasi Tamu', Icons.person_outline, [
+                // Tampilkan akun pelanggan jika tersedia (admin view)
+                if (r.namaPelanggan != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8E44AD).withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: const Color(0xFF8E44AD).withOpacity(0.3)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.hotel_class_outlined,
+                          size: 15, color: Color(0xFF8E44AD)),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Akun Pelanggan',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF8E44AD),
+                                  fontWeight: FontWeight.w600)),
+                          Text('@${r.namaPelanggan}',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF8E44AD))),
+                        ],
+                      ),
+                    ]),
+                  ),
                 InfoRow(icon: Icons.person, label: 'Nama', value: r.namaTamu),
                 InfoRow(icon: Icons.email_outlined, label: 'Email', value: r.email),
                 InfoRow(icon: Icons.phone_outlined, label: 'Telepon', value: r.telepon),

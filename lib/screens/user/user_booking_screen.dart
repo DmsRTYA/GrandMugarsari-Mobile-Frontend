@@ -1,13 +1,15 @@
 // lib/screens/user/user_booking_screen.dart
-// User hanya bisa lihat, tambah, edit, hapus reservasi MILIKNYA sendiri
+// Pelanggan: lihat daftar reservasi + reschedule tanggal saja.
+// Hapus & edit data tamu TIDAK diizinkan — hanya admin yang bisa.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../providers/reservation_provider.dart';
 import '../../models/app_constants.dart';
+import '../../models/reservation_model.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/common_widgets.dart';
-import '../../widgets/reservation_card.dart';
 
 class UserBookingScreen extends StatefulWidget {
   const UserBookingScreen({super.key});
@@ -20,36 +22,6 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
   @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
-  Future<void> _confirmDelete(int id, String name) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Hapus Reservasi'),
-        content: Text('Hapus reservasi a.n "$name"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Hapus')),
-        ],
-      ),
-    );
-    if (ok == true && mounted) {
-      final r = await context.read<ReservationProvider>().delete(id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(r['message'] as String? ?? ''),
-          backgroundColor:
-              r['success'] == true ? AppTheme.success : AppTheme.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final res = context.watch<ReservationProvider>();
@@ -57,24 +29,24 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       body: Column(children: [
-        // Header
         Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                colors: [AppTheme.primary, AppTheme.primaryDark])),
+              gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryDark])),
           child: SafeArea(bottom: false, child: Column(children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
               child: Row(children: [
-                const Text('Booking Saya',
+                const Text('Reservasi Saya',
                     style: TextStyle(color: Colors.white, fontSize: 20,
                         fontWeight: FontWeight.bold)),
                 const Spacer(),
                 IconButton(
                   onPressed: () =>
                       Navigator.pushNamed(context, '/reservations/add'),
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-                  tooltip: 'Buat Booking Baru',
+                  icon: const Icon(Icons.add_circle_outline,
+                      color: Colors.white),
+                  tooltip: 'Buat Reservasi Baru',
                 ),
               ]),
             ),
@@ -85,7 +57,7 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
                 onChanged: res.setSearch,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Cari nama, jenis kamar...',
+                  hintText: 'Cari nama tamu, jenis kamar...',
                   hintStyle: TextStyle(
                       color: Colors.white.withOpacity(0.45), fontSize: 13),
                   prefixIcon: Icon(Icons.search,
@@ -95,7 +67,8 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
                           icon: Icon(Icons.close,
                               color: Colors.white.withOpacity(0.6)),
                           onPressed: () {
-                            _searchCtrl.clear(); res.setSearch('');
+                            _searchCtrl.clear();
+                            res.setSearch('');
                           })
                       : null,
                   filled: true,
@@ -110,7 +83,6 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
           ])),
         ),
 
-        // Filter chips — only Booking-friendly statuses
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -131,38 +103,37 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
         ),
         const Divider(height: 1),
 
-        // List
         Expanded(child: _buildList(res)),
       ]),
 
-      // FAB
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/reservations/add'),
         backgroundColor: AppTheme.accent,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Buat Booking',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text('Buat Reservasi',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w600)),
       ),
     );
   }
 
   Widget _buildList(ReservationProvider res) {
     if (res.state == ResState.loading) {
-      return const LoadingWidget(message: 'Memuat booking...');
+      return const LoadingWidget(message: 'Memuat reservasi...');
     }
     if (res.state == ResState.error) {
-      return AppErrorWidget(message: res.errorMessage ?? 'Gagal',
-          onRetry: res.load);
+      return AppErrorWidget(
+          message: res.errorMessage ?? 'Gagal', onRetry: res.load);
     }
     if (res.reservations.isEmpty) {
       return EmptyWidget(
         icon: Icons.hotel_outlined,
-        title: 'Belum Ada Booking',
+        title: 'Belum Ada Reservasi',
         subtitle: res.searchQuery.isNotEmpty
             ? 'Tidak ditemukan "${res.searchQuery}"'
-            : 'Buat reservasi pertama Anda',
+            : 'Buat reservasi sekarang.\nPetugas hotel akan segera memprosesnya.',
         onAction: () => Navigator.pushNamed(context, '/reservations/add'),
-        actionLabel: 'Buat Sekarang',
+        actionLabel: 'Buat Reservasi',
       );
     }
     return RefreshIndicator(
@@ -175,17 +146,206 @@ class _UserBookingScreenState extends State<UserBookingScreen> {
         itemCount: res.reservations.length,
         itemBuilder: (_, i) {
           final r = res.reservations[i];
-          return ReservationCard(
-            reservation: r, index: i,
+          return _UserReservationCard(
+            reservation: r,
+            index: i,
             onTap: () => Navigator.pushNamed(
                 context, '/reservations/detail', arguments: r),
-            onEdit: () => Navigator.pushNamed(
-                context, '/reservations/edit', arguments: r),
-            onDelete: () => _confirmDelete(r.id, r.namaTamu),
+            onReschedule: r.status == 'Booking'
+                ? () => Navigator.pushNamed(
+                    context, '/reservations/reschedule', arguments: r)
+                : null,
           );
         },
       ),
     );
+  }
+}
+
+// ── User Reservation Card — no delete, reschedule only for Booking ─────────
+class _UserReservationCard extends StatelessWidget {
+  final Reservation reservation;
+  final int index;
+  final VoidCallback? onTap;
+  final VoidCallback? onReschedule;
+
+  const _UserReservationCard({
+    required this.reservation,
+    required this.index,
+    this.onTap,
+    this.onReschedule,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final canReschedule = reservation.status == 'Booking';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.06),
+                blurRadius: 12, offset: const Offset(0, 4))
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Column(children: [
+          // Header
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryDark]),
+            ),
+            child: Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.2),
+                    shape: BoxShape.circle),
+                child: Center(
+                  child: Text(
+                    reservation.namaTamu.isNotEmpty
+                        ? reservation.namaTamu[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                        color: AppTheme.accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(reservation.namaTamu,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
+                      overflow: TextOverflow.ellipsis),
+                  Text(reservation.jenisKamar,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.65),
+                          fontSize: 11)),
+                ]),
+              ),
+              StatusBadge(status: reservation.status, small: true),
+            ]),
+          ),
+
+          // Body
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(children: [
+              Row(children: [
+                const Icon(Icons.calendar_today,
+                    size: 13, color: AppTheme.textSec),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    '${formatDate(reservation.checkIn)}  →  ${formatDate(reservation.checkOut)}',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSec),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.nights_stay,
+                    size: 13, color: AppTheme.textSec),
+                const SizedBox(width: 4),
+                Text(
+                  '${reservation.jumlahMalam}m · ${reservation.jumlahKamar}k',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSec),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('Total',
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.textSec)),
+                    Text(formatRupiah(reservation.totalHarga),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.accent)),
+                  ]),
+                ),
+                if (canReschedule && onReschedule != null)
+                  GestureDetector(
+                    onTap: onReschedule,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: AppTheme.dikonfirmasi.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color:
+                                AppTheme.dikonfirmasi.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_calendar,
+                              size: 14, color: AppTheme.dikonfirmasi),
+                          SizedBox(width: 5),
+                          Text('Ubah Jadwal',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.dikonfirmasi)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.textSec.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock_outline,
+                            size: 12, color: AppTheme.textSec),
+                        const SizedBox(width: 4),
+                        Text(
+                          reservation.status == 'Check-Out'
+                              ? 'Selesai'
+                              : 'Diproses Hotel',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppTheme.textSec),
+                        ),
+                      ],
+                    ),
+                  ),
+              ]),
+            ]),
+          ),
+        ]),
+      ),
+    )
+        .animate(delay: Duration(milliseconds: 60 * index))
+        .fadeIn(duration: 350.ms)
+        .slideY(
+            begin: 0.15,
+            end: 0,
+            duration: 350.ms,
+            curve: Curves.easeOut);
   }
 }
 
@@ -198,18 +358,22 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: active ? color : color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: active ? color : color.withOpacity(0.3)),
-      ),
-      child: Text(label, style: TextStyle(
-          color: active ? Colors.white : color,
-          fontSize: 13, fontWeight: FontWeight.w600)),
-    ),
-  );
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: active ? color : color.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(20),
+            border:
+                Border.all(color: active ? color : color.withOpacity(0.3)),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  color: active ? Colors.white : color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+        ),
+      );
 }

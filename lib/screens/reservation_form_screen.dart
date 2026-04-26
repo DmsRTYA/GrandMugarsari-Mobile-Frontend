@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../models/reservation_model.dart';
 import '../models/app_constants.dart';
+import '../providers/auth_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../widgets/app_theme.dart';
 
@@ -28,6 +29,7 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
   String   _jenisKamar = kRoomTypes.keys.first;
   int      _jumlahKamar = 1;
   int      _jumlahTamu  = 1;
+  // Status hanya bisa diubah oleh admin; pelanggan selalu mulai dengan 'Booking'
   String   _status     = kStatusOptions.first;
   DateTime? _checkIn;
   DateTime? _checkOut;
@@ -233,6 +235,11 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
       return;
     }
     setState(() => _submitting = true);
+
+    // Pelanggan selalu kirim status 'Booking'; admin bebas memilih
+    final isAdmin = context.read<AuthProvider>().isAdmin;
+    final finalStatus = isAdmin ? _status : kStatusOptions.first; // 'Booking'
+
     final data = {
       'nama_tamu':    _namaTamuCtrl.text.trim(),
       'email':        _emailCtrl.text.trim(),
@@ -243,7 +250,7 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
       'check_in':     _checkIn!.toIso8601String().split('T').first,
       'check_out':    _checkOut!.toIso8601String().split('T').first,
       'jumlah_tamu':  _jumlahTamu,
-      'status':       _status,
+      'status':       finalStatus,
       'permintaan':   _noteCtrl.text.trim(),
     };
     final res = context.read<ReservationProvider>();
@@ -265,7 +272,8 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
-          title: Text(_isEdit ? 'Edit Reservasi' : 'Tambah Reservasi')),
+        title: Text(_isEdit ? 'Edit Reservasi' : 'Buat Reservasi Baru'),
+      ),
       body: Form(
         key: _form,
         child: ListView(
@@ -316,12 +324,43 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
 
             DropdownButtonFormField<String>(
               value: _jenisKamar,
+              isExpanded: true,
               decoration: const InputDecoration(
-                  labelText: 'Jenis Kamar', prefixIcon: Icon(Icons.bed)),
+                labelText: 'Jenis Kamar',
+                prefixIcon: Icon(Icons.bed),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              ),
+              selectedItemBuilder: (context) => kRoomTypes.entries.map((e) =>
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${e.key}  ·  ${formatRupiah(e.value)}/malam',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textPri),
+                  ),
+                ),
+              ).toList(),
               items: kRoomTypes.entries.map((e) => DropdownMenuItem(
                 value: e.key,
-                child: Text('${e.key} — ${formatRupiah(e.value)}/malam',
-                    overflow: TextOverflow.ellipsis),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(e.key,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppTheme.textPri)),
+                    Text(
+                      '${formatRupiah(e.value)} / malam',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppTheme.textSec),
+                    ),
+                  ],
+                ),
               )).toList(),
               onChanged: (v) => setState(() => _jenisKamar = v!),
             ),
@@ -396,14 +435,90 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
             _sectionTitle('Info Tambahan', Icons.info_outline, 3),
             const SizedBox(height: 12),
 
-            DropdownButtonFormField<String>(
-              value: _status,
-              decoration: const InputDecoration(
-                  labelText: 'Status Reservasi',
-                  prefixIcon: Icon(Icons.flag_outlined)),
-              items: kStatusOptions.map((s) => DropdownMenuItem(
-                  value: s, child: Text(s))).toList(),
-              onChanged: (v) => setState(() => _status = v!),
+            // Status hanya tampil untuk admin; pelanggan otomatis 'Booking'
+            Consumer<AuthProvider>(
+              builder: (_, auth, __) {
+                if (auth.isAdmin) {
+                  // Admin: bisa pilih semua status
+                  return DropdownButtonFormField<String>(
+                    value: _status,
+                    decoration: const InputDecoration(
+                        labelText: 'Status Reservasi',
+                        prefixIcon: Icon(Icons.flag_outlined)),
+                    items: kStatusOptions.map((s) => DropdownMenuItem(
+                        value: s, child: Text(s))).toList(),
+                    onChanged: (v) => setState(() => _status = v!),
+                  );
+                }
+                // Pelanggan: status terkunci di 'Booking', tampilkan info banner
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.checkInC.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppTheme.checkInC.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.check_circle_outline,
+                              color: AppTheme.checkInC, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Reservasi Anda akan diproses',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: AppTheme.textPri)),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Setelah dikirim, booking Anda langsung masuk '
+                                  'ke sistem hotel kami dan akan segera dikonfirmasi '
+                                  'oleh petugas.',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSec,
+                                      height: 1.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Status read-only badge
+                    Row(children: [
+                      const Text('Status awal: ',
+                          style: TextStyle(
+                              fontSize: 13, color: AppTheme.textSec)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.statusBg('Booking'),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: AppTheme.booking.withOpacity(0.4)),
+                        ),
+                        child: const Text('Booking',
+                            style: TextStyle(
+                                color: AppTheme.booking,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12)),
+                      ),
+                    ]),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -421,13 +536,21 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
             // Submit
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white)))
-                    : Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Reservasi'),
+              child: Consumer<AuthProvider>(
+                builder: (_, auth, __) => ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white)))
+                      : Text(
+                          _isEdit
+                              ? 'Simpan Perubahan'
+                              : auth.isAdmin
+                                  ? 'Tambah Reservasi'
+                                  : 'Kirim Reservasi ke Hotel',
+                        ),
+                ),
               ),
             ),
             const SizedBox(height: 24),

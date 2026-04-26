@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/reservation_provider.dart';
+import '../../providers/reschedule_provider.dart';
 import '../../models/app_constants.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/common_widgets.dart';
@@ -100,14 +101,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 // Stats
                 if (res.state == ResState.loaded) ...[
                   _buildStatsGrid(res),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                 ] else if (res.state == ResState.loading) ...[
                   const SizedBox(height: 20,
                       child: LinearProgressIndicator(
                           valueColor: AlwaysStoppedAnimation(AppTheme.accent),
                           backgroundColor: AppTheme.accentLight)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                 ],
+
+                // Banner notifikasi reschedule pending
+                Consumer<RescheduleProvider>(builder: (_, rp, __) {
+                  if (rp.pendingCount == 0) return const SizedBox.shrink();
+                  return GestureDetector(
+                    onTap: () => Navigator.pushNamed(
+                        context, '/admin/reschedule-requests'),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: AppTheme.error.withOpacity(0.35)),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: AppTheme.error.withOpacity(0.15),
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.pending_actions,
+                              color: AppTheme.error, size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${rp.pendingCount} permintaan reschedule menunggu',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: AppTheme.error),
+                            ),
+                            const Text('Tap untuk meninjau',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textSec)),
+                          ],
+                        )),
+                        const Icon(Icons.arrow_forward_ios,
+                            size: 13, color: AppTheme.error),
+                      ]),
+                    ),
+                  ).animate().fadeIn(duration: 400.ms)
+                      .slideY(begin: -0.1, end: 0, duration: 300.ms);
+                }),
 
                 // Quick Add
                 SizedBox(

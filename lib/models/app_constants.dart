@@ -20,8 +20,10 @@ const List<String> kStatusOptions = [
 ];
 
 /// Role constants — backend menyimpan 'admin' atau 'staff' (default)
-const String kRoleAdmin = 'admin';
-const String kRoleStaff = 'staff';
+/// 'staff' di DB = ditampilkan sebagai 'Pelanggan' di UI
+const String kRoleAdmin     = 'admin';
+const String kRolePelanggan = 'staff'; // nilai DB tetap 'staff'
+const String kRoleStaff     = kRolePelanggan; // alias kompatibilitas
 
 int calcHarga(
     String jenisKamar, int jumlahKamar, DateTime checkIn, DateTime checkOut) {

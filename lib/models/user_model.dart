@@ -6,7 +6,7 @@ class User {
   final int id;
   final String username;
   final String email;
-  final String role; // 'admin' | 'staff'
+  final String role; // 'admin' | 'staff' (ditampilkan sebagai 'Pelanggan')
 
   const User({
     required this.id,

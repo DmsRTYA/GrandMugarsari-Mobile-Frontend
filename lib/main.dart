@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/reservation_provider.dart';
+import 'providers/reschedule_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -13,6 +14,8 @@ import 'screens/home_shell.dart';
 import 'screens/reservation_detail_screen.dart';
 import 'screens/reservation_form_screen.dart';
 import 'screens/admin/admin_reservations_screen.dart';
+import 'screens/admin/admin_reschedule_screen.dart';
+import 'screens/user/reschedule_screen.dart';
 import 'widgets/app_theme.dart';
 
 void main() {
@@ -46,6 +49,10 @@ class HotelApp extends StatelessWidget {
         page = const ReservationFormScreen();
       case '/reservations/edit':
         page = const ReservationFormScreen();
+      case '/reservations/reschedule':
+        page = const RescheduleScreen();
+      case '/admin/reschedule-requests':
+        page = const AdminRescheduleScreen();
       case '/reservations/standalone':
         page = const AdminReservationsScreen();
       default:
@@ -60,6 +67,7 @@ class HotelApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ReservationProvider()),
+        ChangeNotifierProvider(create: (_) => RescheduleProvider()),
       ],
       child: MaterialApp(
         title: 'Hotel Reservasi',
@@ -90,6 +98,8 @@ class _SmoothRoute extends PageRouteBuilder {
             final isOverlay = settings.name == '/reservations/detail' ||
                 settings.name == '/reservations/add' ||
                 settings.name == '/reservations/edit' ||
+                settings.name == '/reservations/reschedule' ||
+                settings.name == '/admin/reschedule-requests' ||
                 settings.name == '/reservations/standalone';
 
             if (isOverlay) {

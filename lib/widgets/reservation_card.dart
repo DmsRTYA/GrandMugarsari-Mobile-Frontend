@@ -60,16 +60,35 @@ class ReservationCard extends StatelessWidget {
                 )),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(reservation.namaTamu,
-                    style: const TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.bold, fontSize: 14),
-                    overflow: TextOverflow.ellipsis),
-                Text(reservation.jenisKamar,
-                    style: TextStyle(color: Colors.white.withOpacity(0.65),
-                        fontSize: 11)),
-              ])),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(reservation.namaTamu,
+                      style: const TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                      overflow: TextOverflow.ellipsis),
+                  // Tampilkan username pelanggan jika tersedia (hanya di tampilan admin)
+                  if (reservation.namaPelanggan != null)
+                    Row(children: [
+                      const Icon(Icons.person_pin,
+                          size: 10, color: AppTheme.accent),
+                      const SizedBox(width: 3),
+                      Text(
+                        'oleh @${reservation.namaPelanggan}',
+                        style: const TextStyle(
+                            color: AppTheme.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ])
+                  else
+                    Text(reservation.jenisKamar,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.65),
+                            fontSize: 11)),
+                ],
+              )),
               StatusBadge(status: reservation.status, small: true),
             ]),
           ),

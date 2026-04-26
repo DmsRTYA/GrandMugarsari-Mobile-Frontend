@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/reservation_provider.dart';
+import '../providers/reschedule_provider.dart';
 import '../widgets/app_theme.dart';
 
 // Admin screens
@@ -35,6 +36,10 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReservationProvider>().load();
+      // Admin juga load reschedule requests untuk badge notifikasi
+      if (context.read<AuthProvider>().isAdmin) {
+        context.read<RescheduleProvider>().load();
+      }
     });
   }
 
@@ -98,22 +103,45 @@ class _AnimatedBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adminItems = const [
-      BottomNavigationBarItem(
+    final adminItems = [
+      const BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_outlined),
           activeIcon: Icon(Icons.dashboard),
           label: 'Dashboard'),
-      BottomNavigationBarItem(
+      const BottomNavigationBarItem(
           icon: Icon(Icons.list_alt_outlined),
           activeIcon: Icon(Icons.list_alt),
           label: 'Reservasi'),
-      BottomNavigationBarItem(
+      const BottomNavigationBarItem(
           icon: Icon(Icons.calendar_month_outlined),
           activeIcon: Icon(Icons.calendar_month),
           label: 'Kalender'),
       BottomNavigationBarItem(
-          icon: Icon(Icons.manage_accounts_outlined),
-          activeIcon: Icon(Icons.manage_accounts),
+          icon: Consumer<RescheduleProvider>(
+            builder: (_, rp, __) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.manage_accounts_outlined),
+                if (rp.pendingCount > 0)
+                  Positioned(
+                    right: -4, top: -4,
+                    child: Container(
+                      width: 14, height: 14,
+                      decoration: const BoxDecoration(
+                          color: AppTheme.error, shape: BoxShape.circle),
+                      child: Center(
+                        child: Text('${rp.pendingCount}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          activeIcon: const Icon(Icons.manage_accounts),
           label: 'Profil'),
     ];
 

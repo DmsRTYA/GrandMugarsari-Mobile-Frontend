@@ -17,6 +17,8 @@ class Reservation {
   final int totalHarga;
   final String createdAt;
   final String updatedAt;
+  /// Hanya terisi saat admin mengambil data (JOIN dengan tabel users)
+  final String? namaPelanggan;
 
   const Reservation({
     required this.id,
@@ -35,6 +37,7 @@ class Reservation {
     required this.totalHarga,
     required this.createdAt,
     required this.updatedAt,
+    this.namaPelanggan,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> j) => Reservation(
@@ -54,6 +57,7 @@ class Reservation {
         totalHarga: (j['total_harga'] as num?)?.toInt() ?? 0,
         createdAt: j['created_at'] as String? ?? '',
         updatedAt: j['updated_at'] as String? ?? '',
+        namaPelanggan: j['nama_pelanggan'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -73,6 +77,7 @@ class Reservation {
         'total_harga': totalHarga,
         'created_at': createdAt,
         'updated_at': updatedAt,
+        if (namaPelanggan != null) 'nama_pelanggan': namaPelanggan,
       };
 
   int get jumlahMalam {

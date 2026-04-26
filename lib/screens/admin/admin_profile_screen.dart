@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/reservation_provider.dart';
+import '../../providers/reschedule_provider.dart';
 import '../../models/app_constants.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/common_widgets.dart';
@@ -156,6 +157,15 @@ class AdminProfileScreen extends StatelessWidget {
       _MenuItem(Icons.list_alt, 'Semua Reservasi',
           () => Navigator.pushNamed(context, '/reservations/standalone')),
       const Divider(height: 1, indent: 56),
+      Consumer<RescheduleProvider>(builder: (_, rp, __) =>
+        _MenuItem(
+          Icons.edit_calendar,
+          'Permintaan Reschedule${rp.pendingCount > 0 ? ' (${rp.pendingCount})' : ''}',
+          () => Navigator.pushNamed(context, '/admin/reschedule-requests'),
+          badge: rp.pendingCount > 0 ? rp.pendingCount : null,
+        ),
+      ),
+      const Divider(height: 1, indent: 56),
       _MenuItem(Icons.add_box_outlined, 'Tambah Reservasi',
           () => Navigator.pushNamed(context, '/reservations/add')),
       const Divider(height: 1, indent: 56),
@@ -228,7 +238,9 @@ class _MenuItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _MenuItem(this.icon, this.label, this.onTap);
+  final int? badge;
+  const _MenuItem(this.icon, this.label, this.onTap, {this.badge});
+
   @override
   Widget build(BuildContext context) => ListTile(
     leading: Container(
@@ -240,8 +252,22 @@ class _MenuItem extends StatelessWidget {
     ),
     title: Text(label,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-    trailing: const Icon(Icons.arrow_forward_ios,
-        size: 13, color: AppTheme.textSec),
+    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+      if (badge != null)
+        Container(
+          margin: const EdgeInsets.only(right: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+              color: AppTheme.error,
+              borderRadius: BorderRadius.circular(10)),
+          child: Text('$badge',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold)),
+        ),
+      const Icon(Icons.arrow_forward_ios, size: 13, color: AppTheme.textSec),
+    ]),
     onTap: onTap,
   );
 }

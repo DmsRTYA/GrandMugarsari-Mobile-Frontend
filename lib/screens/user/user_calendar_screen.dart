@@ -150,14 +150,14 @@ class _UserCalendarScreenState extends State<UserCalendarScreen> {
                     Icon(Icons.event_available,
                         size: 44, color: AppTheme.accent.withOpacity(0.35)),
                     const SizedBox(height: 8),
-                    const Text('Tidak ada jadwal reservasi',
+                    const Text('Belum ada jadwal reservasi pada hari ini',
                         style: TextStyle(color: AppTheme.textSec)),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () =>
                           Navigator.pushNamed(context, '/reservations/add'),
                       icon: const Icon(Icons.add),
-                      label: const Text('Buat Booking'),
+                      label: const Text('Buat Reservasi'),
                     ),
                   ]),
                 ).animate().fadeIn(duration: 300.ms)

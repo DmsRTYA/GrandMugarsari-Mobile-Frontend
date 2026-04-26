@@ -209,7 +209,21 @@ class _EventTile extends StatelessWidget {
             Text(reservation.namaTamu,
                 style: const TextStyle(fontWeight: FontWeight.bold,
                     fontSize: 14, color: AppTheme.textPri)),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
+            if (reservation.namaPelanggan != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(children: [
+                  const Icon(Icons.person_pin,
+                      size: 11, color: Color(0xFF8E44AD)),
+                  const SizedBox(width: 3),
+                  Text('@${reservation.namaPelanggan}',
+                      style: const TextStyle(
+                          color: Color(0xFF8E44AD),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500)),
+                ]),
+              ),
             Text('${reservation.jenisKamar} · ${reservation.jumlahKamar} kamar',
                 style: const TextStyle(color: AppTheme.textSec, fontSize: 12)),
             const SizedBox(height: 3),

@@ -181,21 +181,22 @@ class RoleBadge extends StatelessWidget {
     decoration: BoxDecoration(
       color: isAdmin
           ? AppTheme.accent.withOpacity(0.15)
-          : AppTheme.dikonfirmasi.withOpacity(0.12),
+          : const Color(0xFF8E44AD).withOpacity(0.12),
       borderRadius: BorderRadius.circular(20),
       border: Border.all(
           color: isAdmin
               ? AppTheme.accent.withOpacity(0.5)
-              : AppTheme.dikonfirmasi.withOpacity(0.4)),
+              : const Color(0xFF8E44AD).withOpacity(0.4)),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(isAdmin ? Icons.admin_panel_settings : Icons.person_outline,
-          size: 13, color: isAdmin ? AppTheme.accent : AppTheme.dikonfirmasi),
+      Icon(isAdmin ? Icons.admin_panel_settings : Icons.hotel_class_outlined,
+          size: 13,
+          color: isAdmin ? AppTheme.accent : const Color(0xFF8E44AD)),
       const SizedBox(width: 5),
-      Text(isAdmin ? 'Admin' : 'Staff',
+      Text(isAdmin ? 'Admin Hotel' : 'Pelanggan',
           style: TextStyle(
               fontSize: 12, fontWeight: FontWeight.w700,
-              color: isAdmin ? AppTheme.accent : AppTheme.dikonfirmasi)),
+              color: isAdmin ? AppTheme.accent : const Color(0xFF8E44AD))),
     ]),
   );
 }

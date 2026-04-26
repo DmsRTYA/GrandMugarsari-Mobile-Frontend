@@ -93,7 +93,7 @@ class UserProfileScreen extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: _Stat('Total Booking',
+                    Expanded(child: _Stat('Total Reservasi',
                         myTotal.toString(), AppTheme.primary)),
                     Expanded(child: _Stat('Aktif',
                         myActive.toString(), AppTheme.checkInC)),
@@ -124,6 +124,80 @@ class UserProfileScreen extends StatelessWidget {
                   .slideY(begin: 0.1, end: 0),
               const SizedBox(height: 16),
 
+              // Info hak akses pelanggan
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(
+                      color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(children: [
+                      Icon(Icons.verified_user_outlined,
+                          size: 16, color: AppTheme.accent),
+                      SizedBox(width: 8),
+                      Text('Hak Akses Anda',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppTheme.textPri)),
+                    ]),
+                    const SizedBox(height: 12),
+                    _AccessRow(
+                        icon: Icons.check_circle,
+                        color: AppTheme.checkInC,
+                        text: 'Buat reservasi baru'),
+                    _AccessRow(
+                        icon: Icons.check_circle,
+                        color: AppTheme.checkInC,
+                        text: 'Lihat daftar reservasi Anda'),
+                    _AccessRow(
+                        icon: Icons.check_circle,
+                        color: AppTheme.checkInC,
+                        text: 'Ubah jadwal (reschedule) reservasi berstatus Booking'),
+                    _AccessRow(
+                        icon: Icons.cancel,
+                        color: AppTheme.textSec,
+                        text: 'Ubah data tamu / jenis kamar — hanya admin hotel'),
+                    _AccessRow(
+                        icon: Icons.cancel,
+                        color: AppTheme.textSec,
+                        text: 'Hapus reservasi — hanya admin hotel'),
+                    _AccessRow(
+                        icon: Icons.cancel,
+                        color: AppTheme.textSec,
+                        text: 'Ubah status reservasi — hanya admin hotel'),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: AppTheme.accentLight,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: const Row(children: [
+                        Icon(Icons.support_agent,
+                            size: 15, color: AppTheme.accent),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Untuk perubahan data lainnya, hubungi petugas hotel kami.',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.accent,
+                                height: 1.4),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ],
+                ),
+              ).animate(delay: 100.ms).fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 16),
+
               // Menu
               Container(
                 decoration: BoxDecoration(
@@ -132,7 +206,7 @@ class UserProfileScreen extends StatelessWidget {
                       blurRadius: 8)],
                 ),
                 child: Column(children: [
-                  _MenuItem(Icons.hotel_outlined, 'Booking Saya',
+                  _MenuItem(Icons.hotel_outlined, 'Reservasi Saya',
                       () => {}),
                   const Divider(height: 1, indent: 56),
                   _MenuItem(Icons.add_circle_outline, 'Buat Reservasi Baru',
@@ -141,8 +215,7 @@ class UserProfileScreen extends StatelessWidget {
                   _MenuItem(Icons.info_outline, 'Tentang Aplikasi',
                       () => _about(context)),
                 ]),
-              ),
-              const SizedBox(height: 16),
+              ),              const SizedBox(height: 16),
 
               SizedBox(
                 width: double.infinity,
@@ -200,9 +273,12 @@ class UserProfileScreen extends StatelessWidget {
         Icon(Icons.hotel, color: AppTheme.accent),
         SizedBox(width: 8), Text('Grand Mugarsari'),
       ]),
-      content: const Text('Hotel Reservation System v1.0.0\n\n'
-          'Portal reservasi hotel berbasis Flutter.',
-          style: TextStyle(height: 1.6)),
+      content: const Text(
+        'Hotel Reservation System v1.0.0\n\n'
+        'Portal reservasi online untuk pelanggan Grand Mugarsari Hotel.\n\n'
+        'Buat reservasi kapan saja — tim hotel kami siap memproses pesanan Anda.',
+        style: TextStyle(height: 1.6),
+      ),
       actions: [ElevatedButton(
           onPressed: () => Navigator.pop(ctx), child: const Text('Tutup'))],
     ),
@@ -239,5 +315,31 @@ class _MenuItem extends StatelessWidget {
     trailing: const Icon(Icons.arrow_forward_ios,
         size: 13, color: AppTheme.textSec),
     onTap: onTap,
+  );
+}
+
+class _AccessRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+  const _AccessRow(
+      {required this.icon, required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 15, color: color),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 12,
+                color: color == AppTheme.checkInC
+                    ? AppTheme.textPri
+                    : AppTheme.textSec,
+                height: 1.4)),
+      ),
+    ]),
   );
 }

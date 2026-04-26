@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/reservation_provider.dart';
+import '../../providers/reschedule_provider.dart';
 import '../../models/app_constants.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/common_widgets.dart';
@@ -18,9 +19,18 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RescheduleProvider>().load();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final res  = context.watch<ReservationProvider>();
+    final rp   = context.watch<RescheduleProvider>();
 
     // Stats only for current user's reservations
     final myRes = res.allReservations;
@@ -29,6 +39,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         r.status == 'Booking' || r.status == 'Dikonfirmasi' ||
         r.status == 'Check-In').length;
     final myPending = myRes.where((r) => r.status == 'Booking').length;
+    final myConfirmed = myRes.where((r) => r.status == 'Dikonfirmasi').length;
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -70,20 +81,18 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           const Expanded(child: Text('Grand Mugarsari',
                               style: TextStyle(color: Colors.white,
                                   fontSize: 15, fontWeight: FontWeight.bold))),
-                          RoleBadge(isAdmin: false),
-                        ]),
+                          RoleBadge(isAdmin: false),                        ]),
                         const SizedBox(height: 16),
-                        Text('Halo,',
+                          const Text('Halo,',
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 13)),
-                        Text(auth.user?.username ?? 'Tamu',
-                            style: const TextStyle(color: Colors.white,
-                                fontSize: 24, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        const Text('Selamat datang di portal reservasi Anda',
-                            style: TextStyle(color: AppTheme.accent,
-                                fontSize: 11, letterSpacing: 0.3)),
+                                color: Colors.white70, fontSize: 13)),
+                          Text(auth.user?.username ?? 'Pelanggan',
+                              style: const TextStyle(color: Colors.white,
+                                  fontSize: 24, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
+                          const Text('Selamat datang di portal reservasi Anda',
+                              style: TextStyle(color: AppTheme.accent,
+                                  fontSize: 11, letterSpacing: 0.3)),
                       ]),
                     ),
                   ),
@@ -104,8 +113,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
                 // Personal stats
                 if (res.state == ResState.loaded) ...[
-                  _buildPersonalStats(myTotal, myActive, myPending),
-                  const SizedBox(height: 20),
+                  _buildPersonalStats(myTotal, myActive, myConfirmed),
+                  const SizedBox(height: 14),
+                ],
+
+                // Banner status reschedule
+                if (rp.state == RescheduleState.loaded &&
+                    rp.requests.isNotEmpty) ...[
+                  _RescheduleStatusBanner(requests: rp.requests),
+                  const SizedBox(height: 14),
                 ],
 
                 // Quick Action
@@ -139,7 +155,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   EmptyWidget(
                     icon: Icons.hotel_outlined,
                     title: 'Belum Ada Reservasi',
-                    subtitle: 'Buat reservasi pertama Anda sekarang',
+                    subtitle: 'Buat reservasi pertama Anda sekarang.\nBooking Anda akan masuk ke hotel secara otomatis.',
                     onAction: () =>
                         Navigator.pushNamed(context, '/reservations/add'),
                     actionLabel: 'Buat Sekarang',
@@ -211,4 +227,89 @@ class _PersonalStatCard extends StatelessWidget {
     ]),
   ).animate(delay: Duration(milliseconds: 80 * index))
       .fadeIn(duration: 350.ms).slideY(begin: 0.15, end: 0, duration: 350.ms);
+}
+
+// ── Reschedule Status Banner ─────────────────────────────────────────────────
+class _RescheduleStatusBanner extends StatelessWidget {
+  final List requests;
+  const _RescheduleStatusBanner({required this.requests});
+
+  @override
+  Widget build(BuildContext context) {
+    // Tampilkan hanya request terbaru yang masih pending atau baru diproses
+    final recent = requests.take(3).toList();
+    if (recent.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Status Reschedule'),
+        const SizedBox(height: 8),
+        ...recent.asMap().entries.map((e) {
+          final r = e.value;
+          final status = r.status as String;
+          Color color;
+          IconData icon;
+          String label;
+          switch (status) {
+            case 'pending':
+              color = AppTheme.booking;
+              icon  = Icons.pending_actions;
+              label = 'Menunggu persetujuan admin';
+              break;
+            case 'approved':
+              color = AppTheme.checkInC;
+              icon  = Icons.check_circle_outline;
+              label = 'Disetujui — jadwal telah diperbarui';
+              break;
+            default:
+              color = AppTheme.error;
+              icon  = Icons.cancel_outlined;
+              label = 'Ditolak oleh admin';
+          }
+          final oldDates =
+              '${formatDate(r.oldCheckIn as String)} → ${formatDate(r.oldCheckOut as String)}';
+          final newDates =
+              '${formatDate(r.newCheckIn as String)} → ${formatDate(r.newCheckOut as String)}';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(
+                        color: color, fontWeight: FontWeight.bold,
+                        fontSize: 12)),
+                    const SizedBox(height: 3),
+                    Text('$oldDates  →  $newDates',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppTheme.textSec)),
+                    if ((r.catatanAdmin as String).isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text('Catatan: ${r.catatanAdmin}',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppTheme.textSec,
+                              fontStyle: FontStyle.italic)),
+                    ],
+                  ],
+                )),
+              ],
+            ),
+          ).animate(delay: Duration(milliseconds: 60 * e.key))
+              .fadeIn(duration: 300.ms);
+        }),
+      ],
+    );
+  }
 }
