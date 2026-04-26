@@ -18,7 +18,7 @@ class Reservation {
   final String createdAt;
   final String updatedAt;
 
-  Reservation({
+  const Reservation({
     required this.id,
     required this.userId,
     required this.namaTamu,
@@ -37,26 +37,24 @@ class Reservation {
     required this.updatedAt,
   });
 
-  factory Reservation.fromJson(Map<String, dynamic> json) {
-    return Reservation(
-      id: json['id'] as int,
-      userId: json['user_id'] as int,
-      namaTamu: json['nama_tamu'] as String,
-      email: json['email'] as String,
-      telepon: json['telepon'] as String,
-      noIdentitas: json['no_identitas'] as String,
-      jenisKamar: json['jenis_kamar'] as String,
-      jumlahKamar: json['jumlah_kamar'] as int,
-      checkIn: json['check_in'] as String,
-      checkOut: json['check_out'] as String,
-      jumlahTamu: json['jumlah_tamu'] as int,
-      status: json['status'] as String,
-      permintaan: json['permintaan'] as String? ?? '',
-      totalHarga: json['total_harga'] as int,
-      createdAt: json['created_at'] as String? ?? '',
-      updatedAt: json['updated_at'] as String? ?? '',
-    );
-  }
+  factory Reservation.fromJson(Map<String, dynamic> j) => Reservation(
+        id: (j['id'] as num).toInt(),
+        userId: (j['user_id'] as num).toInt(),
+        namaTamu: j['nama_tamu'] as String? ?? '',
+        email: j['email'] as String? ?? '',
+        telepon: j['telepon'] as String? ?? '',
+        noIdentitas: j['no_identitas'] as String? ?? '',
+        jenisKamar: j['jenis_kamar'] as String? ?? '',
+        jumlahKamar: (j['jumlah_kamar'] as num?)?.toInt() ?? 1,
+        checkIn: j['check_in'] as String? ?? '',
+        checkOut: j['check_out'] as String? ?? '',
+        jumlahTamu: (j['jumlah_tamu'] as num?)?.toInt() ?? 1,
+        status: j['status'] as String? ?? 'Booking',
+        permintaan: j['permintaan'] as String? ?? '',
+        totalHarga: (j['total_harga'] as num?)?.toInt() ?? 0,
+        createdAt: j['created_at'] as String? ?? '',
+        updatedAt: j['updated_at'] as String? ?? '',
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -77,54 +75,22 @@ class Reservation {
         'updated_at': updatedAt,
       };
 
-  /// Kembalikan salinan dengan field yang diubah
-  Reservation copyWith({
-    int? id,
-    int? userId,
-    String? namaTamu,
-    String? email,
-    String? telepon,
-    String? noIdentitas,
-    String? jenisKamar,
-    int? jumlahKamar,
-    String? checkIn,
-    String? checkOut,
-    int? jumlahTamu,
-    String? status,
-    String? permintaan,
-    int? totalHarga,
-    String? createdAt,
-    String? updatedAt,
-  }) {
-    return Reservation(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      namaTamu: namaTamu ?? this.namaTamu,
-      email: email ?? this.email,
-      telepon: telepon ?? this.telepon,
-      noIdentitas: noIdentitas ?? this.noIdentitas,
-      jenisKamar: jenisKamar ?? this.jenisKamar,
-      jumlahKamar: jumlahKamar ?? this.jumlahKamar,
-      checkIn: checkIn ?? this.checkIn,
-      checkOut: checkOut ?? this.checkOut,
-      jumlahTamu: jumlahTamu ?? this.jumlahTamu,
-      status: status ?? this.status,
-      permintaan: permintaan ?? this.permintaan,
-      totalHarga: totalHarga ?? this.totalHarga,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  /// Hitung jumlah malam
   int get jumlahMalam {
     try {
       final ci = DateTime.parse(checkIn);
       final co = DateTime.parse(checkOut);
-      final diff = co.difference(ci).inDays;
-      return diff < 1 ? 1 : diff;
+      final d = co.difference(ci).inDays;
+      return d < 1 ? 1 : d;
     } catch (_) {
       return 1;
     }
+  }
+
+  DateTime? get checkInDate {
+    try { return DateTime.parse(checkIn); } catch (_) { return null; }
+  }
+
+  DateTime? get checkOutDate {
+    try { return DateTime.parse(checkOut); } catch (_) { return null; }
   }
 }

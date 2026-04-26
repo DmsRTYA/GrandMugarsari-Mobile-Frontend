@@ -1,151 +1,101 @@
 // lib/providers/reservation_provider.dart
-// Provider untuk state reservasi dengan three-state UI: loading, error, data
 
 import 'package:flutter/foundation.dart';
 import '../models/reservation_model.dart';
 import '../services/reservation_service.dart';
 
-/// Three-state UI sesuai ketentuan tugas
-enum ReservationState { loading, error, loaded }
+enum ResState { loading, error, loaded }
 
 class ReservationProvider extends ChangeNotifier {
-  final ReservationService _service = ReservationService();
+  final _svc = ReservationService();
 
-  ReservationState _state = ReservationState.loading;
-  List<Reservation> _reservations = [];
-  List<Reservation> _filteredReservations = [];
-  String? _errorMessage;
-  String _activeFilter = 'all';
-  String _searchQuery = '';
+  ResState          _state  = ResState.loading;
+  List<Reservation> _all    = [];
+  List<Reservation> _shown  = [];
+  String?           _error;
+  String            _filter = 'all';
+  String            _query  = '';
 
-  // ─── Getters ───────────────────────────────────────────────────────────────
-  ReservationState get state => _state;
-  List<Reservation> get reservations => _filteredReservations;
-  List<Reservation> get allReservations => _reservations;
-  String? get errorMessage => _errorMessage;
-  String get activeFilter => _activeFilter;
-  String get searchQuery => _searchQuery;
-  bool get isLoading => _state == ReservationState.loading;
+  ResState          get state      => _state;
+  List<Reservation> get reservations => _shown;
+  List<Reservation> get allReservations => _all;
+  String?           get errorMessage => _error;
+  String            get activeFilter => _filter;
+  String            get searchQuery  => _query;
+  bool              get isLoading   => _state == ResState.loading;
 
-  // ─── Stats untuk Dashboard ─────────────────────────────────────────────────
-  int get totalReservations => _reservations.length;
-  int get bookingCount =>
-      _reservations.where((r) => r.status == 'Booking').length;
-  int get dikonfirmasiCount =>
-      _reservations.where((r) => r.status == 'Dikonfirmasi').length;
-  int get checkInCount =>
-      _reservations.where((r) => r.status == 'Check-In').length;
-  int get checkOutCount =>
-      _reservations.where((r) => r.status == 'Check-Out').length;
-  int get totalPendapatan =>
-      _reservations.fold(0, (sum, r) => sum + r.totalHarga);
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  int get total      => _all.length;
+  int get booking    => _all.where((r) => r.status == 'Booking').length;
+  int get dikonfirmasi => _all.where((r) => r.status == 'Dikonfirmasi').length;
+  int get checkIn    => _all.where((r) => r.status == 'Check-In').length;
+  int get checkOut   => _all.where((r) => r.status == 'Check-Out').length;
+  int get pendapatan => _all.fold(0, (s, r) => s + r.totalHarga);
 
-  // ─── Load Data ─────────────────────────────────────────────────────────────
-
-  Future<void> loadReservations() async {
-    _state = ReservationState.loading;
-    _errorMessage = null;
+  // ── Load ───────────────────────────────────────────────────────────────────
+  Future<void> load() async {
+    _state = ResState.loading;
+    _error = null;
     notifyListeners();
-
     try {
-      _reservations = await _service.getReservations();
-      _applyFilters();
-      _state = ReservationState.loaded;
+      _all = await _svc.getReservations();
+      _apply();
+      _state = ResState.loaded;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      _state = ReservationState.error;
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _state = ResState.error;
     }
     notifyListeners();
   }
 
-  // ─── Filter & Search ───────────────────────────────────────────────────────
+  // ── Filter / Search ────────────────────────────────────────────────────────
+  void setFilter(String f) { _filter = f; _apply(); notifyListeners(); }
+  void setSearch(String q) { _query = q.toLowerCase(); _apply(); notifyListeners(); }
 
-  void setFilter(String status) {
-    _activeFilter = status;
-    _applyFilters();
-    notifyListeners();
-  }
-
-  void setSearch(String query) {
-    _searchQuery = query.toLowerCase();
-    _applyFilters();
-    notifyListeners();
-  }
-
-  void _applyFilters() {
-    var result = List<Reservation>.from(_reservations);
-
-    // Filter by status
-    if (_activeFilter != 'all') {
-      result = result.where((r) => r.status == _activeFilter).toList();
+  void _apply() {
+    var r = List<Reservation>.from(_all);
+    if (_filter != 'all') r = r.where((x) => x.status == _filter).toList();
+    if (_query.isNotEmpty) {
+      r = r.where((x) =>
+        x.namaTamu.toLowerCase().contains(_query) ||
+        x.email.toLowerCase().contains(_query) ||
+        x.jenisKamar.toLowerCase().contains(_query) ||
+        x.telepon.contains(_query)).toList();
     }
-
-    // Filter by search query (nama tamu, email, jenis kamar)
-    if (_searchQuery.isNotEmpty) {
-      result = result.where((r) {
-        return r.namaTamu.toLowerCase().contains(_searchQuery) ||
-            r.email.toLowerCase().contains(_searchQuery) ||
-            r.jenisKamar.toLowerCase().contains(_searchQuery) ||
-            r.telepon.contains(_searchQuery);
-      }).toList();
-    }
-
-    _filteredReservations = result;
+    _shown = r;
   }
 
-  // ─── CRUD Operations ───────────────────────────────────────────────────────
-
-  /// Tambah reservasi baru
-  Future<Map<String, dynamic>> createReservation(
-    Map<String, dynamic> data,
-  ) async {
-    final result = await _service.createReservation(data);
-    if (result['success'] == true) {
-      final newRes = result['data'] as Reservation;
-      _reservations.insert(0, newRes);
-      _applyFilters();
-      notifyListeners();
+  // ── CRUD ───────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> create(Map<String, dynamic> data) async {
+    final r = await _svc.create(data);
+    if (r['success'] == true) {
+      _all.insert(0, r['data'] as Reservation);
+      _apply(); notifyListeners();
     }
-    return result;
+    return r;
   }
 
-  /// Update reservasi
-  Future<Map<String, dynamic>> updateReservation(
-    int id,
-    Map<String, dynamic> data,
-  ) async {
-    final result = await _service.updateReservation(id, data);
-    if (result['success'] == true) {
-      final updated = result['data'] as Reservation;
-      final idx = _reservations.indexWhere((r) => r.id == id);
-      if (idx != -1) {
-        _reservations[idx] = updated;
-        _applyFilters();
-        notifyListeners();
-      }
+  Future<Map<String, dynamic>> update(int id, Map<String, dynamic> data) async {
+    final r = await _svc.update(id, data);
+    if (r['success'] == true) {
+      final idx = _all.indexWhere((x) => x.id == id);
+      if (idx != -1) { _all[idx] = r['data'] as Reservation; _apply(); notifyListeners(); }
     }
-    return result;
+    return r;
   }
 
-  /// Hapus reservasi
-  Future<Map<String, dynamic>> deleteReservation(int id) async {
-    final result = await _service.deleteReservation(id);
-    if (result['success'] == true) {
-      _reservations.removeWhere((r) => r.id == id);
-      _applyFilters();
-      notifyListeners();
+  Future<Map<String, dynamic>> delete(int id) async {
+    final r = await _svc.delete(id);
+    if (r['success'] == true) {
+      _all.removeWhere((x) => x.id == id);
+      _apply(); notifyListeners();
     }
-    return result;
+    return r;
   }
 
-  /// Reset state (saat logout)
   void reset() {
-    _reservations = [];
-    _filteredReservations = [];
-    _state = ReservationState.loading;
-    _activeFilter = 'all';
-    _searchQuery = '';
-    _errorMessage = null;
+    _all = []; _shown = []; _state = ResState.loading;
+    _filter = 'all'; _query = ''; _error = null;
     notifyListeners();
   }
 }

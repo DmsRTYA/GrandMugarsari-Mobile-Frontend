@@ -1,9 +1,11 @@
 // lib/screens/reservation_form_screen.dart
-// Form tambah / edit reservasi dengan kalkulasi harga otomatis
+// Form tambah/edit — date picker menggunakan TableCalendar Google Material
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../models/reservation_model.dart';
 import '../models/app_constants.dart';
 import '../providers/reservation_provider.dart';
@@ -11,154 +13,251 @@ import '../widgets/app_theme.dart';
 
 class ReservationFormScreen extends StatefulWidget {
   const ReservationFormScreen({super.key});
-
-  @override
-  State<ReservationFormScreen> createState() => _ReservationFormScreenState();
+  @override State<ReservationFormScreen> createState() =>
+      _ReservationFormScreenState();
 }
 
 class _ReservationFormScreenState extends State<ReservationFormScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _form          = GlobalKey<FormState>();
+  final _namaTamuCtrl  = TextEditingController();
+  final _emailCtrl     = TextEditingController();
+  final _teleponCtrl   = TextEditingController();
+  final _idCtrl        = TextEditingController();
+  final _noteCtrl      = TextEditingController();
 
-  // Controllers
-  final _namaTamuCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _teleponCtrl = TextEditingController();
-  final _noIdentitasCtrl = TextEditingController();
-  final _permintaanCtrl = TextEditingController();
-
-  // State
-  String _jenisKamar = kRoomTypes.keys.first;
-  int _jumlahKamar = 1;
-  int _jumlahTamu = 1;
-  String _status = kStatusOptions.first;
+  String   _jenisKamar = kRoomTypes.keys.first;
+  int      _jumlahKamar = 1;
+  int      _jumlahTamu  = 1;
+  String   _status     = kStatusOptions.first;
   DateTime? _checkIn;
   DateTime? _checkOut;
-  bool _isEdit = false;
-  int? _editId;
-  bool _isSubmitting = false;
+  bool     _isEdit     = false;
+  int?     _editId;
+  bool     _submitting = false;
+  bool     _populated  = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final existing =
-        ModalRoute.of(context)?.settings.arguments as Reservation?;
-    if (existing != null && !_isEdit) {
-      _isEdit = true;
-      _editId = existing.id;
-      _namaTamuCtrl.text = existing.namaTamu;
-      _emailCtrl.text = existing.email;
-      _teleponCtrl.text = existing.telepon;
-      _noIdentitasCtrl.text = existing.noIdentitas;
-      _permintaanCtrl.text = existing.permintaan;
-      _jenisKamar = existing.jenisKamar;
-      _jumlahKamar = existing.jumlahKamar;
-      _jumlahTamu = existing.jumlahTamu;
-      _status = existing.status;
+    if (_populated) return;
+    _populated = true;
+    final ex = ModalRoute.of(context)?.settings.arguments as Reservation?;
+    if (ex != null) {
+      _isEdit        = true;
+      _editId        = ex.id;
+      _namaTamuCtrl.text = ex.namaTamu;
+      _emailCtrl.text    = ex.email;
+      _teleponCtrl.text  = ex.telepon;
+      _idCtrl.text       = ex.noIdentitas;
+      _noteCtrl.text     = ex.permintaan;
+      _jenisKamar   = ex.jenisKamar;
+      _jumlahKamar  = ex.jumlahKamar;
+      _jumlahTamu   = ex.jumlahTamu;
+      _status       = ex.status;
       try {
-        _checkIn = DateTime.parse(existing.checkIn);
-        _checkOut = DateTime.parse(existing.checkOut);
+        _checkIn  = DateTime.parse(ex.checkIn);
+        _checkOut = DateTime.parse(ex.checkOut);
       } catch (_) {}
     }
   }
 
   @override
   void dispose() {
-    _namaTamuCtrl.dispose();
-    _emailCtrl.dispose();
-    _teleponCtrl.dispose();
-    _noIdentitasCtrl.dispose();
-    _permintaanCtrl.dispose();
+    _namaTamuCtrl.dispose(); _emailCtrl.dispose();
+    _teleponCtrl.dispose(); _idCtrl.dispose(); _noteCtrl.dispose();
     super.dispose();
   }
 
-  // Kalkulasi harga otomatis
-  int get _totalHarga {
+  int get _harga {
     if (_checkIn == null || _checkOut == null) return 0;
     return calcHarga(_jenisKamar, _jumlahKamar, _checkIn!, _checkOut!);
   }
 
-  // Pilih tanggal
-  Future<void> _pickDate(bool isCheckIn) async {
-    final now = DateTime.now();
-    final initial = isCheckIn
-        ? (_checkIn ?? now)
-        : (_checkOut ?? (_checkIn?.add(const Duration(days: 1)) ?? now));
-    final first = isCheckIn ? now : (_checkIn ?? now);
+  // ── Google-Material calendar bottom sheet ─────────────────────────────────
+  Future<void> _pickDateRange() async {
+    DateTime tempFocused = _checkIn ?? DateTime.now();
+    DateTime? tempCheckIn  = _checkIn;
+    DateTime? tempCheckOut = _checkOut;
+    bool selectingCheckIn  = true;
 
-    final picked = await showDatePicker(
+    await showModalBottomSheet(
       context: context,
-      initialDate: initial,
-      firstDate: first,
-      lastDate: DateTime(now.year + 2),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppTheme.primary,
-            onPrimary: Colors.white,
-            secondary: AppTheme.accent,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.68,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-        ),
-        child: child!,
-      ),
+          child: Column(children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 38, height: 4,
+              decoration: BoxDecoration(
+                  color: AppTheme.divider,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(children: [
+                const Text('Pilih Tanggal',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
+                        color: AppTheme.textPri)),
+                const Spacer(),
+                // Check-in chip
+                _DateChip(
+                  label: 'Check-In',
+                  date: tempCheckIn,
+                  isActive: selectingCheckIn,
+                  onTap: () => setModal(() => selectingCheckIn = true),
+                ),
+                const SizedBox(width: 8),
+                // Check-out chip
+                _DateChip(
+                  label: 'Check-Out',
+                  date: tempCheckOut,
+                  isActive: !selectingCheckIn,
+                  onTap: () => setModal(() => selectingCheckIn = false),
+                ),
+              ]),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: TableCalendar(
+                firstDay: DateTime.now().subtract(const Duration(days: 1)),
+                lastDay: DateTime(DateTime.now().year + 3),
+                focusedDay: tempFocused,
+                selectedDayPredicate: (d) {
+                  if (selectingCheckIn && tempCheckIn != null) {
+                    return isSameDay(d, tempCheckIn);
+                  }
+                  if (!selectingCheckIn && tempCheckOut != null) {
+                    return isSameDay(d, tempCheckOut);
+                  }
+                  return false;
+                },
+                rangeStartDay: tempCheckIn,
+                rangeEndDay: tempCheckOut,
+                rangeSelectionMode: RangeSelectionMode.enforced,
+                onRangeSelected: (start, end, focused) {
+                  setModal(() {
+                    tempCheckIn  = start;
+                    tempCheckOut = end;
+                    tempFocused  = focused;
+                    selectingCheckIn = end == null;
+                  });
+                },
+                onPageChanged: (f) => setModal(() => tempFocused = f),
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  todayDecoration: BoxDecoration(
+                      color: AppTheme.accent.withOpacity(0.25),
+                      shape: BoxShape.circle),
+                  selectedDecoration: const BoxDecoration(
+                      color: AppTheme.primary, shape: BoxShape.circle),
+                  rangeHighlightColor: AppTheme.accent.withOpacity(0.15),
+                  rangeStartDecoration: const BoxDecoration(
+                      color: AppTheme.primary, shape: BoxShape.circle),
+                  rangeEndDecoration: const BoxDecoration(
+                      color: AppTheme.accent, shape: BoxShape.circle),
+                  withinRangeTextStyle: const TextStyle(
+                      color: AppTheme.primary, fontWeight: FontWeight.w600),
+                  weekendTextStyle: const TextStyle(color: AppTheme.error),
+                ),
+                headerStyle: const HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  titleTextStyle: TextStyle(color: AppTheme.textPri,
+                      fontSize: 15, fontWeight: FontWeight.bold),
+                  leftChevronIcon: Icon(Icons.chevron_left,
+                      color: AppTheme.primary),
+                  rightChevronIcon: Icon(Icons.chevron_right,
+                      color: AppTheme.primary),
+                ),
+                daysOfWeekStyle: const DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(color: AppTheme.textSec,
+                      fontWeight: FontWeight.w600, fontSize: 12),
+                  weekendStyle: TextStyle(color: AppTheme.error,
+                      fontWeight: FontWeight.w600, fontSize: 12),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16,
+                  MediaQuery.of(context).viewInsets.bottom + 16),
+              child: Row(children: [
+                Expanded(child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal'))),
+                const SizedBox(width: 12),
+                Expanded(child: ElevatedButton(
+                  onPressed: (tempCheckIn != null && tempCheckOut != null)
+                      ? () {
+                          setState(() {
+                            _checkIn  = tempCheckIn;
+                            _checkOut = tempCheckOut;
+                          });
+                          Navigator.pop(ctx);
+                        }
+                      : null,
+                  child: const Text('Pilih'),
+                )),
+              ]),
+            ),
+          ]),
+        );
+      }),
     );
-    if (picked != null) {
-      setState(() {
-        if (isCheckIn) {
-          _checkIn = picked;
-          if (_checkOut != null && !_checkOut!.isAfter(picked)) {
-            _checkOut = picked.add(const Duration(days: 1));
-          }
-        } else {
-          _checkOut = picked;
-        }
-      });
-    }
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_form.currentState!.validate()) return;
     if (_checkIn == null || _checkOut == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tanggal check-in dan check-out wajib diisi'),
-          backgroundColor: AppTheme.error,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Pilih tanggal check-in dan check-out terlebih dahulu'),
+        backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+      ));
       return;
     }
-
-    setState(() => _isSubmitting = true);
-
+    if (!_checkOut!.isAfter(_checkIn!)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Check-out harus setelah check-in'),
+        backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() => _submitting = true);
     final data = {
-      'nama_tamu': _namaTamuCtrl.text.trim(),
-      'email': _emailCtrl.text.trim(),
-      'telepon': _teleponCtrl.text.trim(),
-      'no_identitas': _noIdentitasCtrl.text.trim(),
-      'jenis_kamar': _jenisKamar,
+      'nama_tamu':    _namaTamuCtrl.text.trim(),
+      'email':        _emailCtrl.text.trim(),
+      'telepon':      _teleponCtrl.text.trim(),
+      'no_identitas': _idCtrl.text.trim(),
+      'jenis_kamar':  _jenisKamar,
       'jumlah_kamar': _jumlahKamar,
-      'check_in': _checkIn!.toIso8601String().split('T').first,
-      'check_out': _checkOut!.toIso8601String().split('T').first,
-      'jumlah_tamu': _jumlahTamu,
-      'status': _status,
-      'permintaan': _permintaanCtrl.text.trim(),
+      'check_in':     _checkIn!.toIso8601String().split('T').first,
+      'check_out':    _checkOut!.toIso8601String().split('T').first,
+      'jumlah_tamu':  _jumlahTamu,
+      'status':       _status,
+      'permintaan':   _noteCtrl.text.trim(),
     };
-
-    final provider = context.read<ReservationProvider>();
-    final result = _isEdit
-        ? await provider.updateReservation(_editId!, data)
-        : await provider.createReservation(data);
-
-    setState(() => _isSubmitting = false);
-
+    final res = context.read<ReservationProvider>();
+    final r = _isEdit
+        ? await res.update(_editId!, data)
+        : await res.create(data);
+    setState(() => _submitting = false);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message'] as String? ?? ''),
-        backgroundColor:
-            result['success'] == true ? AppTheme.success : AppTheme.error,
-      ),
-    );
-    if (result['success'] == true) Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(r['message'] as String? ?? ''),
+      backgroundColor: r['success'] == true ? AppTheme.success : AppTheme.error,
+      behavior: SnackBarBehavior.floating,
+    ));
+    if (r['success'] == true && mounted) Navigator.pop(context);
   }
 
   @override
@@ -166,71 +265,29 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Reservasi' : 'Tambah Reservasi'),
-      ),
+          title: Text(_isEdit ? 'Edit Reservasi' : 'Tambah Reservasi')),
       body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+        key: _form,
+        child: ListView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Harga Preview ───────────────────────────────────────
-              if (_checkIn != null && _checkOut != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.primary, Color(0xFF0F3460)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calculate_outlined,
-                          color: AppTheme.accent),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Estimasi Harga',
-                            style: TextStyle(
-                                color: Colors.white60, fontSize: 12),
-                          ),
-                          Text(
-                            formatRupiah(_totalHarga),
-                            style: const TextStyle(
-                              color: AppTheme.accent,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+          children: [
+            // Harga preview
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _checkIn != null && _checkOut != null
+                  ? _PricePreview(harga: _harga, key: ValueKey(_harga))
+                  : const SizedBox.shrink(),
+            ),
 
-              // ── Data Tamu ───────────────────────────────────────────
-              _buildSectionTitle('Data Tamu', Icons.person_outline),
-              const SizedBox(height: 12),
+            // ── Data Tamu ──────────────────────────────────────────
+            _sectionTitle('Data Tamu', Icons.person_outline, 0),
+            const SizedBox(height: 12),
 
-              _buildField(
-                controller: _namaTamuCtrl,
-                label: 'Nama Tamu',
-                icon: Icons.person,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 12),
-
-              _buildField(
-                controller: _emailCtrl,
-                label: 'Email Tamu',
-                icon: Icons.email_outlined,
+            _field(_namaTamuCtrl, 'Nama Tamu', Icons.person,
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Wajib diisi' : null),
+            const SizedBox(height: 12),
+            _field(_emailCtrl, 'Email Tamu', Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Wajib diisi';
@@ -238,325 +295,282 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
                     return 'Format email tidak valid';
                   }
                   return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              _buildField(
-                controller: _teleponCtrl,
-                label: 'No. Telepon',
-                icon: Icons.phone_outlined,
+                }),
+            const SizedBox(height: 12),
+            _field(_teleponCtrl, 'No. Telepon', Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 12),
+                validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null),
+            const SizedBox(height: 12),
+            _field(_idCtrl, 'No. Identitas (KTP/SIM/Paspor)',
+                Icons.badge_outlined,
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Wajib diisi' : null),
+            const SizedBox(height: 10),
+            _counter('Jumlah Tamu', _jumlahTamu, 1, 20,
+                (v) => setState(() => _jumlahTamu = v)),
 
-              _buildField(
-                controller: _noIdentitasCtrl,
-                label: 'No. Identitas (KTP/SIM/Paspor)',
-                icon: Icons.badge_outlined,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 8),
+            // ── Detail Kamar ───────────────────────────────────────
+            const SizedBox(height: 20),
+            _sectionTitle('Detail Kamar', Icons.hotel_outlined, 1),
+            const SizedBox(height: 12),
 
-              // Jumlah Tamu
-              _buildCounter(
-                label: 'Jumlah Tamu',
-                value: _jumlahTamu,
-                min: 1,
-                max: 20,
-                onChanged: (v) => setState(() => _jumlahTamu = v),
-              ),
-              const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _jenisKamar,
+              decoration: const InputDecoration(
+                  labelText: 'Jenis Kamar', prefixIcon: Icon(Icons.bed)),
+              items: kRoomTypes.entries.map((e) => DropdownMenuItem(
+                value: e.key,
+                child: Text('${e.key} — ${formatRupiah(e.value)}/malam',
+                    overflow: TextOverflow.ellipsis),
+              )).toList(),
+              onChanged: (v) => setState(() => _jenisKamar = v!),
+            ),
+            const SizedBox(height: 12),
+            _counter('Jumlah Kamar', _jumlahKamar, 1, 10,
+                (v) => setState(() => _jumlahKamar = v)),
 
-              // ── Detail Kamar ────────────────────────────────────────
-              _buildSectionTitle('Detail Kamar', Icons.hotel_outlined),
-              const SizedBox(height: 12),
+            // ── Tanggal (Google Calendar) ──────────────────────────
+            const SizedBox(height: 20),
+            _sectionTitle('Tanggal Menginap', Icons.calendar_month, 2),
+            const SizedBox(height: 12),
 
-              // Jenis Kamar
-              DropdownButtonFormField<String>(
-                value: _jenisKamar,
-                decoration: const InputDecoration(
-                  labelText: 'Jenis Kamar',
-                  prefixIcon: Icon(Icons.bed),
-                ),
-                items: kRoomTypes.entries
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e.key,
-                        child: Text(
-                          '${e.key} — ${formatRupiah(e.value)}/malam',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _jenisKamar = v!),
-              ),
-              const SizedBox(height: 12),
-
-              _buildCounter(
-                label: 'Jumlah Kamar',
-                value: _jumlahKamar,
-                min: 1,
-                max: 10,
-                onChanged: (v) => setState(() => _jumlahKamar = v),
-              ),
-              const SizedBox(height: 20),
-
-              // ── Tanggal ─────────────────────────────────────────────
-              _buildSectionTitle('Tanggal Menginap', Icons.calendar_month),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _DatePicker(
-                      label: 'Check-In',
-                      date: _checkIn,
-                      onTap: () => _pickDate(true),
-                    ),
+            GestureDetector(
+              onTap: _pickDateRange,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (_checkIn != null && _checkOut != null)
+                        ? AppTheme.accent : AppTheme.divider,
+                    width: (_checkIn != null && _checkOut != null) ? 1.5 : 1,
                   ),
+                ),
+                child: Row(children: [
+                  Icon(Icons.calendar_month,
+                      color: _checkIn != null
+                          ? AppTheme.accent : AppTheme.textSec, size: 22),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _DatePicker(
-                      label: 'Check-Out',
-                      date: _checkOut,
-                      onTap: () => _pickDate(false),
-                    ),
+                    child: _checkIn == null
+                        ? const Text('Pilih tanggal check-in & check-out',
+                            style: TextStyle(color: AppTheme.textSec,
+                                fontSize: 13))
+                        : Column(crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Row(children: [
+                            Expanded(child: _DateDisplay(
+                                label: 'Check-In',
+                                date: _checkIn!,
+                                color: AppTheme.primary)),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Icon(Icons.arrow_forward,
+                                  size: 14, color: AppTheme.textSec),
+                            ),
+                            Expanded(child: _DateDisplay(
+                                label: 'Check-Out',
+                                date: _checkOut,
+                                color: AppTheme.accent)),
+                          ]),
+                          if (_checkIn != null && _checkOut != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              '${_checkOut!.difference(_checkIn!).inDays} malam  ·  '
+                              '${formatRupiah(_harga)} total',
+                              style: const TextStyle(color: AppTheme.accent,
+                                  fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ]),
                   ),
-                ],
+                  const Icon(Icons.edit_calendar, color: AppTheme.textSec,
+                      size: 18),
+                ]),
               ),
-              const SizedBox(height: 20),
+            ),
 
-              // ── Status & Permintaan ─────────────────────────────────
-              _buildSectionTitle('Info Tambahan', Icons.info_outline),
-              const SizedBox(height: 12),
+            // ── Status & Permintaan ────────────────────────────────
+            const SizedBox(height: 20),
+            _sectionTitle('Info Tambahan', Icons.info_outline, 3),
+            const SizedBox(height: 12),
 
-              DropdownButtonFormField<String>(
-                value: _status,
-                decoration: const InputDecoration(
+            DropdownButtonFormField<String>(
+              value: _status,
+              decoration: const InputDecoration(
                   labelText: 'Status Reservasi',
-                  prefixIcon: Icon(Icons.flag_outlined),
-                ),
-                items: kStatusOptions
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _status = v!),
-              ),
-              const SizedBox(height: 12),
+                  prefixIcon: Icon(Icons.flag_outlined)),
+              items: kStatusOptions.map((s) => DropdownMenuItem(
+                  value: s, child: Text(s))).toList(),
+              onChanged: (v) => setState(() => _status = v!),
+            ),
+            const SizedBox(height: 12),
 
-              TextFormField(
-                controller: _permintaanCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Permintaan Khusus (opsional)',
-                  prefixIcon: Icon(Icons.notes_outlined),
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // ── Submit Button ───────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : Text(
-                          _isEdit ? 'Simpan Perubahan' : 'Tambah Reservasi',
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            color: AppTheme.accent,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Icon(icon, size: 18, color: AppTheme.primary),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
-      validator: validator,
-    );
-  }
-
-  Widget _buildCounter({
-    required String label,
-    required int value,
-    required int min,
-    required int max,
-    required ValueChanged<int> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      child: Row(
-        children: [
-          Text(label,
-              style: const TextStyle(color: AppTheme.textSecondary)),
-          const Spacer(),
-          IconButton(
-            onPressed: value > min ? () => onChanged(value - 1) : null,
-            icon: const Icon(Icons.remove_circle_outline),
-            color: AppTheme.primary,
-            constraints: const BoxConstraints(),
-            padding: const EdgeInsets.all(4),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              value.toString(),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+            TextFormField(
+              controller: _noteCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Permintaan Khusus (opsional)',
+                prefixIcon: Icon(Icons.notes_outlined),
+                alignLabelWithHint: true,
               ),
             ),
-          ),
-          IconButton(
-            onPressed: value < max ? () => onChanged(value + 1) : null,
-            icon: const Icon(Icons.add_circle_outline),
-            color: AppTheme.primary,
-            constraints: const BoxConstraints(),
-            padding: const EdgeInsets.all(4),
-          ),
-        ],
-      ),
-    );
-  }
-}
+            const SizedBox(height: 28),
 
-// ─── Date Picker Widget ──────────────────────────────────────────────────────
-
-class _DatePicker extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final VoidCallback onTap;
-
-  const _DatePicker({
-    required this.label,
-    required this.date,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: date != null ? AppTheme.accent : AppTheme.divider,
-            width: date != null ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
+            // Submit
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white)))
+                    : Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Reservasi'),
               ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: date != null ? AppTheme.accent : AppTheme.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  date != null ? _fmt(date!) : 'Pilih Tanggal',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: date != null ? FontWeight.w600 : FontWeight.normal,
-                    color: date != null
-                        ? AppTheme.textPrimary
-                        : AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  String _fmt(DateTime d) {
-    const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-    ];
-    return '${d.day} ${m[d.month - 1]} ${d.year}';
-  }
+  Widget _sectionTitle(String title, IconData icon, int idx) => Row(
+    children: [
+      Container(width: 4, height: 20,
+          decoration: BoxDecoration(color: AppTheme.accent,
+              borderRadius: BorderRadius.circular(2))),
+      const SizedBox(width: 8),
+      Icon(icon, size: 17, color: AppTheme.primary),
+      const SizedBox(width: 6),
+      Text(title, style: const TextStyle(fontSize: 15,
+          fontWeight: FontWeight.bold, color: AppTheme.textPri)),
+    ],
+  ).animate(delay: Duration(milliseconds: 60 * idx))
+      .fadeIn(duration: 300.ms);
+
+  Widget _field(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType? keyboardType,
+      List<TextInputFormatter>? inputFormatters,
+      String? Function(String?)? validator}) =>
+    TextFormField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+          labelText: label, prefixIcon: Icon(icon)),
+      validator: validator,
+    );
+
+  Widget _counter(String label, int value, int min, int max,
+      void Function(int) onChanged) =>
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.divider)),
+      child: Row(children: [
+        Text(label, style: const TextStyle(color: AppTheme.textSec)),
+        const Spacer(),
+        IconButton(
+          onPressed: value > min ? () => onChanged(value - 1) : null,
+          icon: const Icon(Icons.remove_circle_outline),
+          color: AppTheme.primary,
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text('$value', style: const TextStyle(fontSize: 16,
+              fontWeight: FontWeight.bold, color: AppTheme.textPri)),
+        ),
+        IconButton(
+          onPressed: value < max ? () => onChanged(value + 1) : null,
+          icon: const Icon(Icons.add_circle_outline),
+          color: AppTheme.primary,
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(),
+        ),
+      ]),
+    );
+}
+
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
+
+class _PricePreview extends StatelessWidget {
+  final int harga;
+  const _PricePreview({super.key, required this.harga});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+          colors: [AppTheme.primary, AppTheme.primaryDark]),
+      borderRadius: BorderRadius.circular(14)),
+    child: Row(children: [
+      const Icon(Icons.calculate_outlined, color: AppTheme.accent),
+      const SizedBox(width: 10),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Estimasi Total', style: TextStyle(
+            color: Colors.white60, fontSize: 12)),
+        Text(formatRupiah(harga), style: const TextStyle(
+            color: AppTheme.accent, fontSize: 18,
+            fontWeight: FontWeight.bold)),
+      ]),
+    ]),
+  ).animate().fadeIn(duration: 300.ms).scale(
+      begin: const Offset(0.96, 0.96), end: const Offset(1, 1),
+      duration: 300.ms);
+}
+
+class _DateChip extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final bool isActive;
+  final VoidCallback onTap;
+  const _DateChip({required this.label, required this.date,
+      required this.isActive, required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isActive ? AppTheme.primary : AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive ? AppTheme.primary : AppTheme.divider),
+      ),
+      child: Column(children: [
+        Text(label, style: TextStyle(fontSize: 10,
+            color: isActive ? Colors.white70 : AppTheme.textSec)),
+        Text(date != null ? formatDate(date!.toIso8601String()) : '—',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                color: isActive ? Colors.white : AppTheme.textPri)),
+      ]),
+    ),
+  );
+}
+
+class _DateDisplay extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final Color color;
+  const _DateDisplay({required this.label, required this.date,
+      required this.color});
+  @override
+  Widget build(BuildContext context) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSec)),
+    Text(
+      date != null ? formatDate(date!.toIso8601String()) : '—',
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+    ),
+  ]);
 }

@@ -1,8 +1,7 @@
 // lib/models/app_constants.dart
-// Konstanta aplikasi yang mencerminkan backend constants.js
 
-const String kBaseUrl = 'http://10.0.2.2:3000'; // Android emulator → localhost
-// Ganti dengan IP lokal jika menggunakan device fisik, contoh: 'http://192.168.1.x:3000'
+const String kBaseUrl = 'http://10.0.2.2:3000';
+// Ganti dengan IP lokal untuk device fisik: 'http://192.168.1.x:3000'
 
 const Map<String, int> kRoomTypes = {
   'Standard': 350000,
@@ -20,40 +19,65 @@ const List<String> kStatusOptions = [
   'Check-Out',
 ];
 
-const Map<String, Map<String, String>> kStatusStyles = {
-  'Booking': {
-    'color': '#C9A84C',
-    'bg': '#FDF8ED',
-  },
-  'Dikonfirmasi': {
-    'color': '#3498db',
-    'bg': '#EAF4FB',
-  },
-  'Check-In': {
-    'color': '#2ecc71',
-    'bg': '#EAFAF1',
-  },
-  'Check-Out': {
-    'color': '#95a5a6',
-    'bg': '#F2F3F4',
-  },
-};
+/// Role constants — backend menyimpan 'admin' atau 'staff' (default)
+const String kRoleAdmin = 'admin';
+const String kRoleStaff = 'staff';
 
-/// Hitung total harga reservasi
-int calcHarga(String jenisKamar, int jumlahKamar, DateTime checkIn, DateTime checkOut) {
-  final pricePerNight = kRoomTypes[jenisKamar] ?? 0;
-  final malam = checkOut.difference(checkIn).inDays;
-  final nights = malam < 1 ? 1 : malam;
-  return pricePerNight * jumlahKamar * nights;
+int calcHarga(
+    String jenisKamar, int jumlahKamar, DateTime checkIn, DateTime checkOut) {
+  final price = kRoomTypes[jenisKamar] ?? 0;
+  final nights = checkOut.difference(checkIn).inDays;
+  return price * jumlahKamar * (nights < 1 ? 1 : nights);
 }
 
-/// Format angka ke Rupiah
 String formatRupiah(int amount) {
-  final parts = amount.toString().split('');
-  final result = <String>[];
-  for (var i = 0; i < parts.length; i++) {
-    if (i > 0 && (parts.length - i) % 3 == 0) result.add('.');
-    result.add(parts[i]);
+  if (amount == 0) return 'Rp 0';
+  final s = amount.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+    buf.write(s[i]);
   }
-  return 'Rp ${result.join('')}';
+  return 'Rp ${buf.toString()}';
+}
+
+String formatDate(String dateStr) {
+  try {
+    final d = DateTime.parse(dateStr);
+    const m = [
+      'Jan','Feb','Mar','Apr','Mei','Jun',
+      'Jul','Agu','Sep','Okt','Nov','Des',
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  } catch (_) {
+    return dateStr;
+  }
+}
+
+String formatDateLong(String dateStr) {
+  try {
+    final d = DateTime.parse(dateStr);
+    const m = [
+      'Januari','Februari','Maret','April','Mei','Juni',
+      'Juli','Agustus','September','Oktober','November','Desember',
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  } catch (_) {
+    return dateStr;
+  }
+}
+
+String formatDateTime(String dateStr) {
+  try {
+    final d = DateTime.parse(dateStr);
+    const m = [
+      'Jan','Feb','Mar','Apr','Mei','Jun',
+      'Jul','Agu','Sep','Okt','Nov','Des',
+    ];
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '${d.day} ${m[d.month - 1]} ${d.year}  $hh:$mm';
+  } catch (_) {
+    return dateStr;
+  }
 }
